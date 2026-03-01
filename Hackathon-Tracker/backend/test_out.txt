@@ -1,0 +1,5 @@
+[dotenv@17.3.1] injecting env (17) from .env -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+Overview Users Count: 4
+User Roles: [ 'admin', 'team', 'admin', 'team' ]
+Teams Count: 2
+Global Hackathons Count: 0
