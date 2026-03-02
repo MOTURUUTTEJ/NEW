@@ -1,0 +1,85 @@
+[dotenv@17.3.1] injecting env (17) from .env -- tip: 🔐 prevent building .env in docker: https://dotenvx.com/prebuild
+Total Items: 125
+Item Types: { ACTIVITY_LOG: 116, USER: 4, HACKATHON: 1, PROGRESS_LOG: 3, ISSUE: 1 }
+Sample Users: [
+  {
+    "team_name": {
+      "S": "Vedavyas"
+    },
+    "password": {
+      "S": "$2b$10$l8T2Q2OvXaiUkCuFRz7qi.6jN5Y/4thiJ87VQVjLyD47UOLrdWXqS"
+    },
+    "role": {
+      "S": "admin"
+    },
+    "updatedAt": {
+      "S": "2026-02-24T13:19:15.226Z"
+    },
+    "members": {
+      "L": []
+    },
+    "_id": {
+      "S": "user_1771939155226"
+    },
+    "SK": {
+      "S": "METADATA"
+    },
+    "skills": {
+      "L": []
+    },
+    "PK": {
+      "S": "USER#bodepuvedavyas@gmail.com"
+    },
+    "email": {
+      "S": "bodepuvedavyas@gmail.com"
+    },
+    "college": {
+      "S": ""
+    },
+    "type": {
+      "S": "USER"
+    }
+  },
+  {
+    "team_name": {
+      "S": "Uttej"
+    },
+    "password": {
+      "S": "$2b$10$Xl1U9dOq21i58CwKIlZQMu/HPHNQajuIRDWfuzW6ERkxPG/Bi9c6q"
+    },
+    "role": {
+      "S": "team"
+    },
+    "updatedAt": {
+      "S": "2026-02-28T10:11:38.372Z"
+    },
+    "members": {
+      "L": []
+    },
+    "_id": {
+      "S": "user_1772273498372"
+    },
+    "SK": {
+      "S": "METADATA"
+    },
+    "skills": {
+      "L": [
+        {
+          "S": "Aes"
+        }
+      ]
+    },
+    "email": {
+      "S": "u@gmail.com"
+    },
+    "PK": {
+      "S": "USER#u@gmail.com"
+    },
+    "college": {
+      "S": "Avanthi"
+    },
+    "type": {
+      "S": "USER"
+    }
+  }
+]

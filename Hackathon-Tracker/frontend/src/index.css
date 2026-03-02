@@ -1,0 +1,398 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
+
+@import "tailwindcss";
+
+@theme {
+  --color-primary-50: #ffffff;
+  --color-primary-500: #3b82f6;
+  --color-primary-600: #2563eb;
+  --color-secondary-500: #ef4444;
+  --color-secondary-600: #dc2626;
+  --color-accent-500: #8b5cf6;
+  --font-sans: 'Outfit', system-ui, sans-serif;
+  --animate-fade-in: fade-in 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+  --animate-fade-in-up: fade-in-up 220ms cubic-bezier(0.22, 1, 0.36, 1);
+  --animate-pulse-slow: pulse-glow 3s ease infinite;
+  --animate-float: float 6s ease-in-out infinite;
+
+  /* ui-animation skill: enter easing */
+  --ease-enter: cubic-bezier(0.22, 1, 0.36, 1);
+  /* ui-animation skill: move easing */
+  --ease-move: cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+@keyframes fade-in {
+  0% {
+    opacity: 0;
+  }
+
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes fade-in-up {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse-glow {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.7;
+  }
+}
+
+@keyframes float {
+  0% {
+    transform: translateY(0px);
+  }
+
+  50% {
+    transform: translateY(-10px);
+  }
+
+  100% {
+    transform: translateY(0px);
+  }
+}
+
+/* Shimmer sweep — fires once on hover via JS-triggered animation */
+@keyframes shimmer-sweep {
+  0% {
+    transform: translateX(-100%) skewX(-15deg);
+  }
+
+  100% {
+    transform: translateX(260%) skewX(-15deg);
+  }
+}
+
+@layer base {
+  body {
+    @apply bg-[#eff3f8] text-[#1e293b] font-sans antialiased selection:bg-[#3b82f6]/30 selection:text-[#1e293b] min-h-screen overflow-x-hidden;
+    background: radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 1) 0%, rgba(239, 243, 248, 1) 60%);
+    background-attachment: fixed;
+  }
+}
+
+@layer components {
+
+  /* ── INPUTS ─────────────────────────────────────────────────── */
+  .input-field {
+    @apply w-full px-5 py-3 mt-1 bg-white/60 backdrop-blur-xl border border-white/80 rounded-full text-slate-800 placeholder-slate-400 font-medium focus:outline-none focus:bg-white/80 focus:ring-4 focus:ring-[#3b82f6]/20;
+    /* ui-animation: only transition color/opacity/shadow — no transition:all */
+    transition: background-color 200ms ease, box-shadow 200ms ease, border-color 200ms ease;
+    touch-action: manipulation;
+    box-shadow:
+      inset 0 4px 6px -1px rgba(0, 0, 0, 0.05),
+      inset 0 -2px 4px -1px rgba(255, 255, 255, 0.8),
+      0 10px 15px -3px rgba(0, 0, 0, 0.05),
+      0 4px 6px -2px rgba(0, 0, 0, 0.025);
+  }
+
+  /* ── GLASS / PRIMARY BUTTON ──────────────────────────────────
+     ui-animation: enter easing (0.22,1,0.36,1), shimmer on hover,
+     scale(0.97)+opacity:0.9 on active, hover only on pointer device  */
+  .btn-primary {
+    @apply px-6 py-3 bg-white/60 backdrop-blur-xl text-slate-700 font-bold rounded-full border border-white/80 focus:outline-none focus:ring-4 focus:ring-[#3b82f6]/20 disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden flex items-center justify-center;
+    transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
+      box-shadow 220ms cubic-bezier(0.22, 1, 0.36, 1),
+      background-color 200ms ease,
+      border-color 200ms ease;
+    touch-action: manipulation;
+    box-shadow:
+      inset 0 4px 6px -1px rgba(255, 255, 255, 0.9),
+      inset 0 -4px 6px -1px rgba(0, 0, 0, 0.05),
+      0 10px 20px -5px rgba(0, 0, 0, 0.08),
+      0 4px 10px -2px rgba(0, 0, 0, 0.04);
+  }
+
+  /* Shimmer layer — fires on hover via animation */
+  .btn-primary::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.65) 50%, transparent 100%);
+    transform: translateX(-100%) skewX(-15deg);
+    pointer-events: none;
+  }
+
+  /* ui-animation: hover only on real pointer devices */
+  @media (hover: hover) and (pointer: fine) {
+    .btn-primary:hover:not(:disabled) {
+      transform: translateY(-2px) scale(1.02);
+      box-shadow:
+        inset 0 4px 6px -1px rgba(255, 255, 255, 1),
+        inset 0 -4px 6px -1px rgba(0, 0, 0, 0.04),
+        0 20px 30px -8px rgba(0, 0, 0, 0.12),
+        0 8px 16px -4px rgba(0, 0, 0, 0.06);
+    }
+
+    .btn-primary:hover:not(:disabled)::before {
+      animation: shimmer-sweep 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+  }
+
+  /* ui-animation practical tip: scale(0.97) + opacity:0.9 on press */
+  .btn-primary:active:not(:disabled) {
+    transform: scale(0.97);
+    opacity: 0.9;
+    transition-duration: 80ms;
+  }
+
+  /* ── VIOLET / DANGER GRADIENT ────────────────────────────────  */
+  .btn-violet {
+    @apply px-6 py-3 text-white font-bold rounded-full border border-white/40 focus:outline-none focus:ring-4 focus:ring-red-400/30 relative overflow-hidden flex items-center justify-center;
+    background: linear-gradient(135deg, #ef4444, #f97316);
+    transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 220ms ease;
+    touch-action: manipulation;
+    box-shadow:
+      inset 0 4px 6px -1px rgba(255, 255, 255, 0.5),
+      inset 0 -4px 6px -1px rgba(0, 0, 0, 0.2),
+      0 15px 25px -5px rgba(239, 68, 68, 0.4),
+      0 8px 10px -2px rgba(239, 68, 68, 0.2);
+  }
+
+  /* Glow halo element — z-index:-1 keeps it behind text */
+  .btn-violet::after {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: inherit;
+    background: linear-gradient(135deg, #ef4444, #f97316);
+    opacity: 0;
+    filter: blur(14px);
+    pointer-events: none;
+    transition: opacity 200ms ease;
+    z-index: -1;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .btn-violet:hover:not(:disabled) {
+      transform: translateY(-2px) scale(1.02);
+      box-shadow:
+        inset 0 4px 6px -1px rgba(255, 255, 255, 0.6),
+        inset 0 -4px 6px -1px rgba(0, 0, 0, 0.15),
+        0 22px 30px -5px rgba(239, 68, 68, 0.5),
+        0 10px 16px -4px rgba(239, 68, 68, 0.3);
+    }
+
+    .btn-violet:hover:not(:disabled)::after {
+      opacity: 0.6;
+    }
+  }
+
+  .btn-violet:active:not(:disabled) {
+    transform: scale(0.97);
+    opacity: 0.9;
+    transition-duration: 80ms;
+  }
+
+  /* ── CYAN / BLUE GRADIENT ─────────────────────────────────── */
+  .btn-cyan {
+    @apply px-6 py-3 text-white font-bold rounded-full border border-white/40 focus:outline-none focus:ring-4 focus:ring-blue-400/30 relative overflow-hidden flex items-center justify-center;
+    background: linear-gradient(135deg, #3b82f6, #06b6d4);
+    transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 220ms ease;
+    touch-action: manipulation;
+    box-shadow:
+      inset 0 4px 6px -1px rgba(255, 255, 255, 0.5),
+      inset 0 -4px 6px -1px rgba(0, 0, 0, 0.2),
+      0 15px 25px -5px rgba(59, 130, 246, 0.4),
+      0 8px 10px -2px rgba(59, 130, 246, 0.2);
+  }
+
+  .btn-cyan::after {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: inherit;
+    background: linear-gradient(135deg, #3b82f6, #06b6d4);
+    opacity: 0;
+    filter: blur(14px);
+    pointer-events: none;
+    transition: opacity 200ms ease;
+    z-index: -1;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .btn-cyan:hover:not(:disabled) {
+      transform: translateY(-2px) scale(1.02);
+      box-shadow:
+        inset 0 4px 6px -1px rgba(255, 255, 255, 0.6),
+        inset 0 -4px 6px -1px rgba(0, 0, 0, 0.15),
+        0 22px 30px -5px rgba(59, 130, 246, 0.5),
+        0 10px 16px -4px rgba(59, 130, 246, 0.3);
+    }
+
+    .btn-cyan:hover:not(:disabled)::after {
+      opacity: 0.6;
+    }
+  }
+
+  .btn-cyan:active:not(:disabled) {
+    transform: scale(0.97);
+    opacity: 0.9;
+    transition-duration: 80ms;
+  }
+
+  /* ── SECONDARY / OUTLINE ───────────────────────────────────── */
+  .btn-secondary {
+    @apply px-6 py-3 bg-transparent backdrop-blur-sm text-slate-600 font-bold rounded-full border border-white/80 hover:bg-white/40 focus:outline-none focus:ring-4 focus:ring-slate-300/30 shadow-sm;
+    transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
+      background-color 200ms ease,
+      box-shadow 200ms ease,
+      border-color 200ms ease;
+    touch-action: manipulation;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .btn-secondary:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px -4px rgba(0, 0, 0, 0.06);
+    }
+  }
+
+  .btn-secondary:active:not(:disabled) {
+    transform: scale(0.97);
+    opacity: 0.9;
+    transition-duration: 80ms;
+  }
+
+  /* ── DANGER / DELETE SMALL ─────────────────────────────────── */
+  .btn-danger {
+    @apply px-4 py-2 text-white font-bold rounded-full text-sm focus:outline-none focus:ring-4 focus:ring-red-400/30 relative overflow-hidden flex items-center justify-center gap-1.5;
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 220ms ease;
+    touch-action: manipulation;
+    box-shadow: 0 8px 20px -4px rgba(239, 68, 68, 0.35), inset 0 2px 4px rgba(255, 255, 255, 0.4);
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .btn-danger:hover:not(:disabled) {
+      transform: translateY(-1px) scale(1.02);
+      box-shadow: 0 14px 24px -6px rgba(239, 68, 68, 0.5), inset 0 2px 4px rgba(255, 255, 255, 0.5);
+    }
+  }
+
+  .btn-danger:active:not(:disabled) {
+    transform: scale(0.97);
+    opacity: 0.9;
+    transition-duration: 80ms;
+  }
+
+  /* ── SUCCESS / ADD SMALL ───────────────────────────────────── */
+  .btn-success {
+    @apply px-4 py-2 text-white font-bold rounded-full text-sm focus:outline-none focus:ring-4 focus:ring-emerald-400/30 relative overflow-hidden flex items-center justify-center gap-1.5;
+    background: linear-gradient(135deg, #10b981, #06b6d4);
+    transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 220ms ease;
+    touch-action: manipulation;
+    box-shadow: 0 8px 20px -4px rgba(16, 185, 129, 0.35), inset 0 2px 4px rgba(255, 255, 255, 0.4);
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .btn-success:hover:not(:disabled) {
+      transform: translateY(-1px) scale(1.02);
+      box-shadow: 0 14px 24px -6px rgba(16, 185, 129, 0.5), inset 0 2px 4px rgba(255, 255, 255, 0.5);
+    }
+  }
+
+  .btn-success:active:not(:disabled) {
+    transform: scale(0.97);
+    opacity: 0.9;
+    transition-duration: 80ms;
+  }
+
+  /* ── CARD ─────────────────────────────────────────────────── */
+  .card {
+    @apply bg-white/40 backdrop-blur-2xl rounded-3xl border border-white/80 overflow-hidden relative;
+    /* ui-animation: only transform + box-shadow — no layout props */
+    transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
+      box-shadow 220ms ease,
+      border-color 200ms ease;
+    box-shadow:
+      inset 0 4px 6px -1px rgba(255, 255, 255, 0.8),
+      0 20px 40px -10px rgba(0, 0, 0, 0.05),
+      0 10px 20px -5px rgba(0, 0, 0, 0.03);
+  }
+
+  .card::before {
+    content: '';
+    @apply absolute top-0 left-0 w-full h-full pointer-events-none rounded-[32px];
+    box-shadow: inset 0 0 40px rgba(255, 255, 255, 0.4);
+  }
+
+  .card-gradient-glow {
+    @apply relative overflow-hidden;
+  }
+
+  .card-gradient-glow::after {
+    content: '';
+    @apply absolute -bottom-[50%] -right-[50%] w-full h-full blur-[80px] rounded-full pointer-events-none;
+    background: radial-gradient(circle, rgba(139, 92, 246, 0.3), rgba(59, 130, 246, 0.2), transparent);
+    z-index: -1;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .card-hover:hover {
+      @apply -translate-y-2 border-white/70;
+      box-shadow: 0 30px 60px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 1);
+    }
+  }
+
+  .liquid-drop {
+    @apply absolute rounded-full bg-white/20 backdrop-blur-md border border-white/40 shadow-[0_8px_16px_#0000000d] shadow-inner;
+  }
+}
+
+/* ── REDUCED MOTION ─────────────────────────────────────────── */
+/* ui-animation skill: disable transform + animation in reduced motion */
+@media (prefers-reduced-motion: reduce) {
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ── TOUCH DEVICES: disable hover transitions ───────────────── */
+/* ui-animation: no hover effects on touch-only devices */
+@media (hover: none) {
+
+  .btn-primary,
+  .btn-cyan,
+  .btn-violet,
+  .btn-secondary,
+  .btn-danger,
+  .btn-success {
+    transform: none !important;
+    box-shadow: none !important;
+  }
+
+  .btn-primary:active:not(:disabled),
+  .btn-cyan:active:not(:disabled),
+  .btn-violet:active:not(:disabled),
+  .btn-secondary:active:not(:disabled),
+  .btn-danger:active:not(:disabled),
+  .btn-success:active:not(:disabled) {
+    transform: scale(0.97) !important;
+    opacity: 0.9 !important;
+    transition-duration: 80ms !important;
+  }
+}
