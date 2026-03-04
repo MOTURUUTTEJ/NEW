@@ -15,8 +15,10 @@ import {
 } from 'recharts';
 import Loader from '../components/Loader';
 import Leaderboard from '../components/Leaderboard';
+import generateTechStackPDF from '../utils/pdfGenerator';
 
 const AdminDashboard = () => {
+    console.log('Admin Dashboard loaded. PDF Generator:', typeof generateTechStackPDF);
     const { user, logout } = useContext(AuthContext);
     const { dashboardData, fetchDashboard, setDashboardData, loading: contextLoading } = useContext(AdminContext);
 
@@ -227,9 +229,20 @@ const AdminDashboard = () => {
                             Live metrics across all team clusters
                         </p>
                     </div>
-                    <div className="hidden sm:flex items-center gap-2 bg-white/60 backdrop-blur px-4 py-2 rounded-xl border border-white/80 shadow-sm text-sm text-slate-500 font-medium">
-                        <TrendingUp size={16} className="text-[#3b82f6]" aria-hidden="true" />
-                        Real-time
+                    <div className="flex items-center gap-3">
+                        <button
+                            onClick={() => {
+                                console.log('Export button clicked');
+                                generateTechStackPDF();
+                            }}
+                            className="btn-secondary text-xs px-4 py-2 flex items-center gap-2 border-blue-200 text-blue-600 hover:bg-blue-50"
+                        >
+                            <Database size={14} /> Export Tech Spec (PDF)
+                        </button>
+                        <div className="hidden sm:flex items-center gap-2 bg-white/60 backdrop-blur px-4 py-2 rounded-xl border border-white/80 shadow-sm text-sm text-slate-500 font-medium">
+                            <TrendingUp size={16} className="text-[#3b82f6]" aria-hidden="true" />
+                            Real-time
+                        </div>
                     </div>
                 </motion.div>
 

@@ -3,10 +3,19 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "scripts": {
-    "start": "node server.js",
     "dev": "node server.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "NODE_ENV=production node server.js",
+    "start:pm2": "pm2 start ecosystem.config.js",
+    "stop:pm2": "pm2 stop hackathon-backend",
+    "reload:pm2": "pm2 reload hackathon-backend",
+    "logs:pm2": "pm2 logs hackathon-backend",
+    "build": "npm ci --omit=dev",
+    "build:check": "node -e \"require('./server.js')\" & sleep 3 && kill %1 && echo 'Build check passed'",
+    "health": "node scripts/healthCheck.js"
   },
   "keywords": [],
   "author": "",
