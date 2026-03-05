@@ -1,0 +1,40 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "dev": "node server.js",
+    "start": "NODE_ENV=production node server.js",
+    "start:pm2": "pm2 start ecosystem.config.js",
+    "stop:pm2": "pm2 stop hackathon-backend",
+    "reload:pm2": "pm2 reload hackathon-backend",
+    "logs:pm2": "pm2 logs hackathon-backend",
+    "build": "npm ci --omit=dev",
+    "build:check": "node -e \"require('./server.js')\" & sleep 3 && kill %1 && echo 'Build check passed'",
+    "health": "node scripts/healthCheck.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.996.0",
+    "@aws-sdk/client-s3": "^3.995.0",
+    "@aws-sdk/lib-dynamodb": "^3.996.0",
+    "@aws-sdk/s3-request-presigner": "^3.996.0",
+    "amazon-cognito-identity-js": "^6.3.16",
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.6",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "mongodb-memory-server": "^11.0.1",
+    "mongoose": "^9.2.1",
+    "multer": "^2.0.2",
+    "uuid": "^13.0.0"
+  }
+}

@@ -1,0 +1,14 @@
+**/node_modules/
+**/dist/
+**/build/
+**/.env
+**/.env.*
+**/.vite/
+**/.cache/
+*.log
+HTMv3.zip
+extracted/
+.DS_Store
+.vscode/
+.idea/
+rootkey.csv
