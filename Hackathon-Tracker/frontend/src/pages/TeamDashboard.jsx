@@ -1,7 +1,7 @@
 import { useState, useEffect, useContext, useCallback } from 'react';
 import api from '../api';
 import { AuthContext } from '../context/AuthContext';
-import { User, Code2, Plus, Calendar, AlertCircle, LogOut, Settings, Trash2, Edit3, CheckCircle2, Clock, Eye, EyeOff, AlertTriangle, Flag, Image as ImageIcon, TrendingUp, Users, Database, UploadCloud, Globe, ChevronRight } from 'lucide-react';
+import { User, Code2, Plus, Calendar, AlertCircle, LogOut, Settings, Trash2, Edit3, CheckCircle2, Clock, Eye, EyeOff, AlertTriangle, Flag, Image as ImageIcon, TrendingUp, Users, Database, UploadCloud, Globe, ChevronRight, FileText } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import Loader from '../components/Loader';
@@ -37,20 +37,35 @@ const TeamDashboard = () => {
     const [profileError, setProfileError] = useState('');
 
     const [showIssueForm, setShowIssueForm] = useState(false);
-    const [issueData, setIssueData] = useState({ title: '', description: '', project_id: '' });
+    const [issueData, setIssueData] = useState({ title: '', description: '', project_id: '', target: 'Admin' });
     const [issueImage, setIssueImage] = useState(null);
     const [issueSaving, setIssueSaving] = useState(false);
     const [issueSuccess, setIssueSuccess] = useState(false);
     const [activities, setActivities] = useState([]);
+    const [teams, setTeams] = useState([]);
+    const [issues, setIssues] = useState([]);
+    const [replyText, setReplyText] = useState({});
+
+    // Scratchpad feature
+    const [scratchpad, setScratchpad] = useState(localStorage.getItem('team_scratchpad_' + user?._id) || '');
+
+    const handleScratchpadChange = (e) => {
+        setScratchpad(e.target.value);
+        if (user?._id) {
+            localStorage.setItem('team_scratchpad_' + user._id, e.target.value);
+        }
+    };
 
     const fetchData = useCallback(async () => {
         try {
             const config = { headers: { Authorization: `Bearer ${user.token}` } };
-            const [profileRes, hackathonRes, activitiesRes, globalHackRes] = await Promise.allSettled([
+            const [profileRes, hackathonRes, activitiesRes, globalHackRes, teamsRes, issuesRes] = await Promise.allSettled([
                 api.get('/api/team/profile', config),
                 api.get('/api/team/hackathons', config),
                 api.get('/api/team/activity', config),
-                api.get('/api/team/hackathons/global', config)
+                api.get('/api/team/hackathons/global', config),
+                api.get('/api/team/teams', config),
+                api.get('/api/team/issues', config)
             ]);
 
             if (profileRes.status === 'fulfilled') {
@@ -71,6 +86,8 @@ const TeamDashboard = () => {
             if (hackathonRes.status === 'fulfilled') setHackathons(hackathonRes.value.data);
             if (activitiesRes.status === 'fulfilled') setActivities(activitiesRes.value.data);
             if (globalHackRes.status === 'fulfilled') setGlobalHackathons(globalHackRes.value.data || []);
+            if (teamsRes.status === 'fulfilled') setTeams(teamsRes.value.data || []);
+            if (issuesRes.status === 'fulfilled') setIssues(issuesRes.value.data || []);
         } catch (error) {
             console.error('Error fetching data', error);
         } finally {
@@ -182,6 +199,7 @@ const TeamDashboard = () => {
         const formData = new FormData();
         formData.append('title', issueData.title);
         formData.append('description', issueData.description);
+        formData.append('target', issueData.target || 'Admin');
         if (issueData.project_id) formData.append('project_id', issueData.project_id);
         if (issueImage) formData.append('image', issueImage);
 
@@ -189,7 +207,7 @@ const TeamDashboard = () => {
             const config = { headers: { Authorization: `Bearer ${user.token}`, 'Content-Type': 'multipart/form-data' } };
             await api.post('/api/team/issues', formData, config);
             setIssueSuccess(true);
-            setIssueData({ title: '', description: '', project_id: '' });
+            setIssueData({ title: '', description: '', project_id: '', target: 'Admin' });
             setIssueImage(null);
             setShowIssueForm(false);
             setTimeout(() => setIssueSuccess(false), 3000);
@@ -197,6 +215,43 @@ const TeamDashboard = () => {
             console.error('Failed to report issue', error);
         } finally {
             setIssueSaving(false);
+        }
+    };
+
+    const handleSolveIssue = async (id) => {
+        try {
+            const config = { headers: { Authorization: `Bearer ${user.token}` } };
+            const res = await api.put(`/api/team/issues/${id}/solve`, {}, config);
+            setIssues(issues.map(i => i._id === id ? res.data : i));
+        } catch (error) {
+            console.error('Failed to solve issue', error);
+        }
+    };
+
+    const handleDeleteIssue = async (id) => {
+        if (!window.confirm("Are you sure you want to delete this issue?")) return;
+        try {
+            const config = { headers: { Authorization: `Bearer ${user.token}` } };
+            await api.delete(`/api/team/issues/${id}`, config);
+            setIssues(issues.filter(i => i._id !== id));
+        } catch (error) {
+            console.error('Failed to delete issue', error);
+        }
+    };
+
+    const handleReplyChange = (id, text) => {
+        setReplyText({ ...replyText, [id]: text });
+    };
+
+    const handleSendReply = async (id) => {
+        if (!replyText[id]) return;
+        try {
+            const config = { headers: { Authorization: `Bearer ${user.token}` } };
+            const res = await api.put(`/api/team/issues/${id}/reply`, { message: replyText[id] }, config);
+            setIssues(issues.map(i => i._id === id ? res.data : i));
+            setReplyText({ ...replyText, [id]: '' });
+        } catch (error) {
+            console.error('Failed to send reply', error);
         }
     };
 
@@ -439,6 +494,24 @@ const TeamDashboard = () => {
                                 </div>
                             </div>
 
+                            {/* Team Scratchpad */}
+                            <div className="mt-8 pt-6 border-t border-white/60">
+                                <div className="flex justify-between items-center mb-4">
+                                    <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center">
+                                        <FileText size={16} className="mr-2 text-amber-500" /> Team Scratchpad
+                                    </h4>
+                                    <span className="text-[9px] font-bold text-slate-400 bg-white/60 px-2 py-0.5 rounded-full border border-white/80">Local Save</span>
+                                </div>
+                                <div className="bg-amber-50/50 p-1 rounded-2xl border border-amber-100/50">
+                                    <textarea
+                                        value={scratchpad}
+                                        onChange={handleScratchpadChange}
+                                        placeholder="Jot down quick to-dos, links, or ideas for your team..."
+                                        className="w-full h-32 text-xs text-slate-700 font-medium p-3 bg-transparent resize-none focus:outline-none placeholder-amber-700/30 custom-scrollbar"
+                                    />
+                                </div>
+                            </div>
+
                             {/* Report Issue Section */}
                             <div className="mt-8 pt-6 border-t border-white/60">
                                 <button
@@ -461,7 +534,19 @@ const TeamDashboard = () => {
                                     {showIssueForm && (
                                         <motion.form initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} onSubmit={handleIssueSubmit} className="mt-4 space-y-3 bg-white/40 p-4 rounded-2xl border border-white/80 overflow-hidden">
                                             <input required type="text" placeholder="Issue Title" className="w-full text-sm px-3 py-2 bg-white/60 rounded-xl placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-red-200 border border-white/80" value={issueData.title} onChange={e => setIssueData({ ...issueData, title: e.target.value })} />
-                                            <textarea required placeholder="Describe the blocker..." className="w-full text-sm px-3 py-2 bg-white/60 rounded-xl placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-red-200 border border-white/80 h-20 resize-none" value={issueData.description} onChange={e => setIssueData({ ...issueData, description: e.target.value })} />
+                                            <textarea required placeholder="Describe the blocker/message..." className="w-full text-sm px-3 py-2 bg-white/60 rounded-xl placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-red-200 border border-white/80 h-20 resize-none" value={issueData.description} onChange={e => setIssueData({ ...issueData, description: e.target.value })} />
+
+                                            <select
+                                                className="w-full text-sm px-3 py-2 bg-white/60 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-200 border border-white/80"
+                                                value={issueData.target}
+                                                onChange={e => setIssueData({ ...issueData, target: e.target.value })}
+                                            >
+                                                <option value="Admin">Admin</option>
+                                                <option value="Global">Global (All Teams & Admin)</option>
+                                                {teams.filter(t => t._id !== user._id).map(t => (
+                                                    <option key={t._id} value={t._id}>Team: {t.team_name}</option>
+                                                ))}
+                                            </select>
 
                                             <div className="flex gap-2">
                                                 <div className="flex-1 relative">
@@ -632,6 +717,93 @@ const TeamDashboard = () => {
                         <motion.div variants={itemVariants} className="mt-12 backdrop-blur-3xl bg-white/40 rounded-3xl p-8 border border-white/80 shadow-2xl shadow-blue-900/5">
                             <div className="mb-0">
                                 <Leaderboard user={user} />
+                            </div>
+                        </motion.div>
+
+                        {/* ISSUES & MESSAGES SECTION */}
+                        <motion.div variants={itemVariants} className="card p-8 bg-white/60 backdrop-blur-xl mt-6">
+                            <div className="flex items-center justify-between mb-8 border-b border-white/40 pb-4">
+                                <div>
+                                    <h3 className="text-sm font-bold text-slate-800 uppercase tracking-[0.2em] flex items-center gap-2">
+                                        <Flag size={18} className="text-red-500" /> Issues & Messages
+                                    </h3>
+                                    <p className="text-[10px] text-slate-400 font-black uppercase mt-1 tracking-widest">Inbox and Outbox</p>
+                                </div>
+                            </div>
+
+                            <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                                {issues.length === 0 ? (
+                                    <div className="text-center py-10">
+                                        <AlertTriangle className="mx-auto h-8 w-8 text-slate-300 mb-2 opacity-50" />
+                                        <p className="text-xs text-slate-400 font-bold uppercase tracking-widest italic">No messages or issues reported</p>
+                                    </div>
+                                ) : (
+                                    issues.map((issue) => (
+                                        <div key={issue._id} className="p-4 rounded-2xl bg-white/40 hover:bg-white/60 transition-all border border-white/80">
+                                            <div className="flex justify-between items-start mb-2">
+                                                <div>
+                                                    <h4 className="text-sm font-bold text-slate-800">{issue.title}</h4>
+                                                    <p className="text-xs text-slate-500 mt-1">{issue.description}</p>
+                                                </div>
+                                                <div className="flex gap-2 items-center">
+                                                    <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${issue.status === 'Solved' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-red-100 text-red-700 border-red-200'}`}>
+                                                        {issue.status}
+                                                    </span>
+                                                    {issue.team_id === user._id && (
+                                                        <button onClick={() => handleDeleteIssue(issue._id)} className="p-1 px-2 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-lg group transition-colors shadow-sm" title="Delete Message">
+                                                            <Trash2 size={14} className="group-hover:scale-110 transition-transform" />
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div className="flex justify-between items-end mt-4 border-b border-white/20 pb-4">
+                                                <div className="text-[10px] text-slate-400 font-medium space-y-1">
+                                                    <p>From: {issue.team_id === user._id ? 'You' : issue.team_name}</p>
+                                                    <p>To: {issue.target === 'Admin' ? 'Admin' : issue.target === 'Global' ? 'Global (All Teams)' : issue.target === user._id ? 'You' : teams.find(t => t._id === issue.target)?.team_name || issue.target}</p>
+                                                    {issue.status === 'Solved' && <p className="text-emerald-500">Solved by: {issue.solved_by}</p>}
+                                                </div>
+                                                {issue.status === 'Open' && issue.team_id === user._id && (
+                                                    <button onClick={() => handleSolveIssue(issue._id)} className="px-3 py-1.5 bg-emerald-500 text-white rounded-lg text-xs font-bold hover:bg-emerald-600 transition-colors shadow-sm">
+                                                        Mark Solved
+                                                    </button>
+                                                )}
+                                            </div>
+
+                                            {/* Replies Section */}
+                                            {issue.replies && issue.replies.length > 0 && (
+                                                <div className="mt-4 space-y-2">
+                                                    {issue.replies.map((reply, idx) => (
+                                                        <div key={idx} className="bg-white/50 p-3 rounded-xl border border-white/60">
+                                                            <div className="flex justify-between items-center mb-1">
+                                                                <span className="text-[10px] font-bold text-[#3b82f6] uppercase tracking-wider">{reply.sender}</span>
+                                                                <span className="text-[9px] text-slate-400">{new Date(reply.timestamp).toLocaleString()}</span>
+                                                            </div>
+                                                            <p className="text-xs text-slate-600">{reply.message}</p>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+
+                                            {issue.status === 'Open' && (
+                                                <div className="mt-4 flex gap-2">
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Type your reply..."
+                                                        value={replyText[issue._id] || ''}
+                                                        onChange={(e) => handleReplyChange(issue._id, e.target.value)}
+                                                        className="flex-1 text-xs px-3 py-2 bg-white/60 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#3b82f6]/30 border border-white/80"
+                                                    />
+                                                    <button
+                                                        onClick={() => handleSendReply(issue._id)}
+                                                        className="btn-cyan text-[10px] px-4 py-2"
+                                                    >
+                                                        Reply
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))
+                                )}
                             </div>
                         </motion.div>
 

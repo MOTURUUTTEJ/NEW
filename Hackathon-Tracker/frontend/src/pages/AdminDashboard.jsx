@@ -27,12 +27,17 @@ const AdminDashboard = () => {
 
     const [activities, setActivities] = useState(dashboardData?.activities || []);
     const [globalHackathons, setGlobalHackathons] = useState(dashboardData?.hackathons || []);
+    const [issues, setIssues] = useState(dashboardData?.all_issues || []);
+    const [teams, setTeams] = useState(dashboardData?.teams || []);
+    const [replyText, setReplyText] = useState({});
     const [loading, setLoading] = useState(!dashboardData);
 
     useEffect(() => {
         if (dashboardData) {
             setActivities(dashboardData.activities || []);
             setGlobalHackathons(dashboardData.hackathons || []);
+            setIssues(dashboardData.all_issues || []);
+            setTeams(dashboardData.teams || []);
         }
         if (dashboardData || !contextLoading) setLoading(false);
     }, [dashboardData, contextLoading]);
@@ -42,6 +47,11 @@ const AdminDashboard = () => {
     const [hackForm, setHackForm] = useState({ hackathon_name: '', start_date: '', end_date: '', description: '' });
     const [hackSaving, setHackSaving] = useState(false);
     const [hackError, setHackError] = useState('');
+
+    // Broadcast form state
+    const [showBroadcastForm, setShowBroadcastForm] = useState(false);
+    const [broadcastData, setBroadcastData] = useState({ title: '', description: '', target: 'Global' });
+    const [broadcastSaving, setBroadcastSaving] = useState(false);
 
     // Log delete state
     const [deletingLog, setDeletingLog] = useState(null);
@@ -139,6 +149,55 @@ const AdminDashboard = () => {
         }
     };
 
+    const handleResolveIssue = async (id) => {
+        try {
+            await api.put(`/api/admin/issues/${id}/solve`, {}, config);
+            fetchDashboard(true);
+        } catch (error) {
+            console.error('Failed to solve issue', error);
+        }
+    };
+
+    const handleDeleteIssue = async (id) => {
+        if (!window.confirm("Are you sure you want to delete this issue?")) return;
+        try {
+            await api.delete(`/api/admin/issues/${id}`, config);
+            fetchDashboard(true);
+        } catch (error) {
+            console.error('Failed to delete issue', error);
+        }
+    };
+
+    const handleReplyChange = (id, text) => {
+        setReplyText({ ...replyText, [id]: text });
+    };
+
+    const handleSendReply = async (id) => {
+        if (!replyText[id]) return;
+        try {
+            await api.put(`/api/admin/issues/${id}/reply`, { message: replyText[id] }, config);
+            fetchDashboard(true);
+            setReplyText({ ...replyText, [id]: '' });
+        } catch (error) {
+            console.error('Failed to send reply', error);
+        }
+    };
+
+    const handleBroadcastSubmit = async (e) => {
+        e.preventDefault();
+        setBroadcastSaving(true);
+        try {
+            await api.post('/api/admin/issues', broadcastData, config);
+            setBroadcastData({ title: '', description: '', target: 'Global' });
+            setShowBroadcastForm(false);
+            fetchDashboard(true);
+        } catch (error) {
+            console.error('Broadcast failed', error);
+        } finally {
+            setBroadcastSaving(false);
+        }
+    };
+
     const toggleSelectAll = () => {
         if (selectedLogs.size === activities.length) {
             setSelectedLogs(new Set());
@@ -160,6 +219,8 @@ const AdminDashboard = () => {
         { label: 'Hackathons', value: metrics?.overview?.totalHackathons || 0, icon: <LayoutDashboard size={22} className="text-white" aria-hidden="true" />, bg: 'from-[#8b5cf6] to-[#d946ef]', shadow: 'shadow-[#8b5cf6]/30', linkTo: '/admin/teams', state: { filter: 'All' } },
         { label: 'Active Projects', value: metrics?.overview?.activeProjects || 0, icon: <Target size={22} className="text-white" aria-hidden="true" />, bg: 'from-[#f59e0b] to-[#ef4444]', shadow: 'shadow-[#f59e0b]/30', linkTo: '/admin/teams', state: { filter: 'Development' } },
         { label: 'Completed', value: metrics?.overview?.completedProjects || 0, icon: <CheckCircle2 size={22} className="text-white" aria-hidden="true" />, bg: 'from-[#10b981] to-[#06b6d4]', shadow: 'shadow-[#10b981]/30', linkTo: '/admin/teams', state: { filter: 'Completed' } },
+        { label: 'Total Reports', value: metrics?.overview?.totalIssues || 0, icon: <AlertTriangle size={22} className="text-white" aria-hidden="true" />, bg: 'from-[#ef4444] to-[#f43f5e]', shadow: 'shadow-[#ef4444]/30', linkTo: '/admin/teams', state: { filter: 'All' } },
+        { label: 'Solved Reports', value: metrics?.overview?.resolvedIssues || 0, icon: <CheckSquare size={22} className="text-white" aria-hidden="true" />, bg: 'from-[#14b8a6] to-[#0d9488]', shadow: 'shadow-[#14b8a6]/30', linkTo: '/admin/teams', state: { filter: 'All' } }
     ];
 
     const pieData = useMemo(() => {
@@ -247,7 +308,7 @@ const AdminDashboard = () => {
                 </motion.div>
 
                 {/* Stat Cards */}
-                <motion.div variants={containerVariants} initial="hidden" animate="visible" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+                <motion.div variants={containerVariants} initial="hidden" animate="visible" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
                     {statCards.map((stat, i) => (
                         <motion.div variants={itemVariants} key={i}>
                             <Link to={stat.linkTo} state={stat.state} className={`block rounded-2xl p-6 bg-gradient-to-br ${stat.bg} shadow-xl ${stat.shadow} text-white hover:-translate-y-1 transition-transform duration-200`}>
@@ -498,6 +559,130 @@ const AdminDashboard = () => {
                         </div>
                     </motion.div>
                 </div>
+
+                {/* ── PLATFORM ISSUES & REPORTS ─────────────────────── */}
+                <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45 }} className="bg-white/60 backdrop-blur-xl border border-white/80 rounded-3xl p-8 shadow-sm mb-8">
+                    <div className="flex items-center justify-between mb-6 border-b border-white/40 pb-4">
+                        <div>
+                            <h3 className="text-sm font-bold text-slate-800 uppercase tracking-[0.2em] flex items-center gap-2">
+                                <AlertTriangle size={18} className="text-red-500" aria-hidden="true" /> Platform Issues & Reports
+                            </h3>
+                            <p className="text-[10px] text-slate-400 font-black uppercase mt-1 tracking-widest">Inbox across all teams</p>
+                        </div>
+                        <button
+                            onClick={() => setShowBroadcastForm(v => !v)}
+                            className="btn-cyan text-sm px-5 py-2.5 gap-2"
+                        >
+                            {showBroadcastForm ? <X size={15} aria-hidden="true" /> : <Plus size={15} aria-hidden="true" />}
+                            {showBroadcastForm ? 'Cancel' : 'New Broadcast'}
+                        </button>
+                    </div>
+
+                    <AnimatePresence>
+                        {showBroadcastForm && (
+                            <motion.form
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: 'auto' }}
+                                exit={{ opacity: 0, height: 0 }}
+                                onSubmit={handleBroadcastSubmit}
+                                className="mb-6 space-y-3 bg-white/40 p-4 rounded-2xl border border-white/80 overflow-hidden"
+                            >
+                                <input required type="text" placeholder="Message Title" className="w-full text-sm px-3 py-2 bg-white/60 rounded-xl placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#3b82f6]/30 border border-white/80" value={broadcastData.title} onChange={e => setBroadcastData({ ...broadcastData, title: e.target.value })} />
+                                <textarea required placeholder="Write your broadcast or message..." className="w-full text-sm px-3 py-2 bg-white/60 rounded-xl placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#3b82f6]/30 border border-white/80 h-20 resize-none" value={broadcastData.description} onChange={e => setBroadcastData({ ...broadcastData, description: e.target.value })} />
+
+                                <select
+                                    className="w-full text-sm px-3 py-2 bg-white/60 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#3b82f6]/30 border border-white/80"
+                                    value={broadcastData.target}
+                                    onChange={e => setBroadcastData({ ...broadcastData, target: e.target.value })}
+                                >
+                                    <option value="Global">Global (All Teams)</option>
+                                    {teams.map(t => (
+                                        <option key={t._id} value={t._id}>Team: {t.team_name}</option>
+                                    ))}
+                                </select>
+
+                                <div className="flex justify-end gap-2 mt-2">
+                                    <button type="submit" disabled={broadcastSaving} className="btn-cyan px-6 py-2">
+                                        {broadcastSaving ? 'Sending...' : 'Send Message'}
+                                    </button>
+                                </div>
+                            </motion.form>
+                        )}
+                    </AnimatePresence>
+
+                    <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                        {issues.length === 0 ? (
+                            <div className="text-center py-10">
+                                <CheckSquare className="mx-auto h-8 w-8 text-slate-300 mb-2 opacity-50" aria-hidden="true" />
+                                <p className="text-xs text-slate-400 font-bold uppercase tracking-widest italic">No pending reports.</p>
+                            </div>
+                        ) : (
+                            issues.map((issue) => (
+                                <div key={issue._id} className="p-4 rounded-2xl bg-white/40 hover:bg-white/60 transition-all border border-white/80">
+                                    <div className="flex justify-between items-start mb-2">
+                                        <div>
+                                            <h4 className="text-sm font-bold text-slate-800">{issue.title}</h4>
+                                            <p className="text-xs text-slate-500 mt-1">{issue.description}</p>
+                                        </div>
+                                        <div className="flex gap-2 items-center">
+                                            <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${issue.status === 'Solved' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-red-100 text-red-700 border-red-200'}`}>
+                                                {issue.status}
+                                            </span>
+                                            <button onClick={() => handleDeleteIssue(issue._id)} className="p-1 px-2 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-lg group transition-colors shadow-sm" title="Delete Message">
+                                                <Trash2 size={14} className="group-hover:scale-110 transition-transform" />
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div className="flex justify-between items-end mt-4 border-b border-white/20 pb-4">
+                                        <div className="text-[10px] text-slate-400 font-medium space-y-1">
+                                            <p>From: {issue.team_name}</p>
+                                            <p>Target: {issue.target === 'Admin' ? 'Admin' : issue.target === 'Global' ? 'Global' : issue.target}</p>
+                                            {issue.status === 'Solved' && <p className="text-emerald-500">Solved by: {issue.solved_by}</p>}
+                                        </div>
+                                        {issue.status === 'Open' && (
+                                            <button onClick={() => handleResolveIssue(issue._id)} className="px-3 py-1.5 bg-emerald-500 text-white rounded-lg text-xs font-bold hover:bg-emerald-600 transition-colors shadow-sm">
+                                                Mark as Solved
+                                            </button>
+                                        )}
+                                    </div>
+
+                                    {/* Replies Section */}
+                                    {issue.replies && issue.replies.length > 0 && (
+                                        <div className="mt-4 space-y-2">
+                                            {issue.replies.map((reply, idx) => (
+                                                <div key={idx} className="bg-white/50 p-3 rounded-xl border border-white/60">
+                                                    <div className="flex justify-between items-center mb-1">
+                                                        <span className="text-[10px] font-bold text-[#3b82f6] uppercase tracking-wider">{reply.sender}</span>
+                                                        <span className="text-[9px] text-slate-400">{new Date(reply.timestamp).toLocaleString()}</span>
+                                                    </div>
+                                                    <p className="text-xs text-slate-600">{reply.message}</p>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {issue.status === 'Open' && (
+                                        <div className="mt-4 flex gap-2">
+                                            <input
+                                                type="text"
+                                                placeholder="Type your reply..."
+                                                value={replyText[issue._id] || ''}
+                                                onChange={(e) => handleReplyChange(issue._id, e.target.value)}
+                                                className="flex-1 text-xs px-3 py-2 bg-white/60 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#3b82f6]/30 border border-white/80"
+                                            />
+                                            <button
+                                                onClick={() => handleSendReply(issue._id)}
+                                                className="btn-cyan text-[10px] px-4 py-2"
+                                            >
+                                                Reply
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </motion.div>
 
                 {/* ── FULL-WIDTH ACTIVITY LOGS TABLE ────────────────────── */}
                 <motion.div

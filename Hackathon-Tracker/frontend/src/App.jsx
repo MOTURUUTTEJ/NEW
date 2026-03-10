@@ -14,12 +14,6 @@ import LandingPage from './pages/LandingPage';
 import { AdminProvider } from './context/AdminContext';
 
 const RootRoute = () => {
-  const { user } = useContext(AuthContext);
-
-  if (user) {
-    return <Navigate to="/dashboard" replace />;
-  }
-
   return <LandingPage />;
 };
 
@@ -51,6 +45,7 @@ function App() {
       <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <Routes>
           <Route path="/" element={<RootRoute />} />
+          <Route path="/landing_page" element={<LandingPage />} />
           <Route path="/welcome" element={<Welcome />} />
           <Route path="/login" element={<Login />} />
           <Route path="/admin/login" element={<Login isAdmin={true} />} />

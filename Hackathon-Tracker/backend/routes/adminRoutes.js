@@ -15,7 +15,11 @@ const {
     createGlobalHackathon,
     getGlobalHackathons,
     deleteGlobalHackathon,
-    getDashboardFull
+    getDashboardFull,
+    solveIssue,
+    replyIssue,
+    createIssue,
+    deleteIssue
 } = require('../controllers/adminController');
 
 const router = express.Router();
@@ -32,11 +36,15 @@ router.route('/teams/:id')
     .get(protect, admin, getTeamById)
     .delete(protect, admin, deleteTeam);
 
-// Reports / artifacts
+// Reports / artifacts / issues
 router.route('/reports/:id/grade').put(protect, admin, gradeReport);
 router.route('/projects/:id/rate').put(protect, admin, rateProject);
 router.route('/reports/:id/download').get(protect, admin, getSignedDownloadUrl);
 router.route('/reports/:id').delete(protect, admin, deleteReport);
+router.route('/issues').post(protect, admin, createIssue);
+router.route('/issues/:id').delete(protect, admin, deleteIssue);
+router.route('/issues/:id/solve').put(protect, admin, solveIssue);
+router.route('/issues/:id/reply').put(protect, admin, replyIssue);
 
 // S3
 router.route('/s3/list').get(protect, admin, listS3Files);

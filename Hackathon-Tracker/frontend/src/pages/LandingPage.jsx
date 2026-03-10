@@ -16,14 +16,25 @@ const LandingPage = () => {
             document.head.appendChild(link);
         }
 
-        // Load GSAP scripts dynamically
-        const loadScript = (src) => new Promise((resolve, reject) => {
-            if (document.querySelector(`script[src="${src}"]`)) { resolve(); return; }
-            const s = document.createElement('script');
-            s.src = src;
-            s.onload = resolve;
-            s.onerror = reject;
-            document.body.appendChild(s);
+        // Load GSAP scripts dynamically and safely for React StrictMode
+        const loadScript = (src, checkFn) => new Promise((resolve, reject) => {
+            if (checkFn()) { resolve(); return; }
+            let s = document.querySelector(`script[src="${src}"]`);
+            if (!s) {
+                s = document.createElement('script');
+                s.src = src;
+                document.body.appendChild(s);
+            }
+            const checkInterval = setInterval(() => {
+                if (checkFn()) {
+                    clearInterval(checkInterval);
+                    resolve();
+                }
+            }, 50);
+            s.addEventListener('error', (e) => {
+                clearInterval(checkInterval);
+                reject(e);
+            });
         });
 
         const initAnimations = () => {
@@ -437,13 +448,16 @@ const LandingPage = () => {
         let cleanupFn = null;
 
         Promise.all([
-            loadScript('https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js'),
+            loadScript('https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js', () => window.gsap),
         ]).then(() =>
-            loadScript('https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js')
+            loadScript('https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js', () => window.gsap && window.ScrollTrigger)
         ).then(() =>
-            loadScript('https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/TextPlugin.min.js')
+            loadScript('https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/TextPlugin.min.js', () => window.gsap && window.TextPlugin)
         ).then(() => {
-            cleanupFn = initAnimations();
+            // Need a tiny delay just to make sure the plugins finish registering themselves to window
+            setTimeout(() => {
+                cleanupFn = initAnimations();
+            }, 50);
         }).catch(console.error);
 
         return () => {

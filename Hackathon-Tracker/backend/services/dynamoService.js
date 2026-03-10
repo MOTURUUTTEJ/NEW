@@ -190,18 +190,34 @@ const dynamoService = {
         return Items;
     },
 
+    getAllIssues: async () => {
+        const { Items } = await docClient.send(new ScanCommand({ TableName: TABLE_NAME }));
+        return (Items || []).filter(i => i.type === 'ISSUE' || (i.SK && i.SK.startsWith('ISSUE#')));
+    },
+
     saveIssue: async (email, issueData) => {
+        // If it already has PK/SK, use them to support updates
+        const pk = issueData.PK || `USER#${email.toLowerCase()}`;
         const issueId = issueData._id || `issue_${Date.now()}`;
+        const sk = issueData.SK || `ISSUE#${issueId}`;
+
         const item = {
-            PK: `USER#${email.toLowerCase()}`,
-            SK: `ISSUE#${issueId}`,
             ...issueData,
+            PK: pk,
+            SK: sk,
             _id: issueId,
             type: 'ISSUE',
             updatedAt: new Date().toISOString()
         };
         await docClient.send(new PutCommand({ TableName: TABLE_NAME, Item: item }));
         return item;
+    },
+
+    deleteIssue: async (pk, sk) => {
+        await docClient.send(new DeleteCommand({
+            TableName: TABLE_NAME,
+            Key: { PK: pk, SK: sk }
+        }));
     },
 
     // ---------------------------------------------------------

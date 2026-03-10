@@ -11,18 +11,26 @@ const {
     createProject,
     getProjects,
     updateProjectStatus,
+    deleteProject,
     uploadReport,
-    getReports,
+    deleteArtifact,
     reportIssue,
     getTeamIssues,
-    getProjectHistory,
+    deleteIssue,
+    solveIssue,
+    replyIssue,
     getSignedDownloadUrl,
     getLeaderboard,
     getActivities,
-    getGlobalHackathons
+    getGlobalHackathons,
+    getReports,
+    getProjectHistory,
+    getTeams
 } = require('../controllers/teamController');
 
 const router = express.Router();
+
+router.route('/teams').get(protect, getTeams);
 
 router.route('/activity').get(protect, getActivities);
 
@@ -61,6 +69,10 @@ router.route('/projects/:id/status')
 router.route('/projects/:id/history')
     .get(protect, getProjectHistory);
 
+// Delete a project (requires ?hackathon_id=... query param)
+router.route('/projects/:id')
+    .delete(protect, deleteProject);
+
 router.route('/reports/:id/download')
     .get(protect, getSignedDownloadUrl);
 
@@ -70,9 +82,19 @@ router.route('/projects/:id/report')
 router.route('/projects/:id/reports')
     .get(protect, getReports);
 
-router.route('/issues')
-    .post(protect, upload.single('image'), reportIssue)
-    .get(protect, getTeamIssues);
+// Delete a team's own artifact (requires ?project_id=... query param)
+router.route('/reports/:id')
+    .delete(protect, deleteArtifact);
+
+router.route('/issues').post(protect, upload.single('image'), reportIssue);
+router.route('/issues').get(protect, getTeamIssues);
+
+router.route('/issues/:id/solve')
+    .put(protect, solveIssue);
+
+router.route('/issues/:id/reply').put(protect, replyIssue);
+
+router.route('/issues/:id').delete(protect, deleteIssue);
 
 router.route('/leaderboard')
     .get(protect, getLeaderboard);

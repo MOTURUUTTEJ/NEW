@@ -10,9 +10,12 @@ const getAnalytics = async (req, res) => {
     try {
         const { users, hackathons, projects } = await dynamoService.getAdminDashboardOverview();
         const teams = users.filter(u => u.role === 'team');
+        const allIssues = await dynamoService.getAllIssues();
 
         const completed = projects.filter(p => p.status === 'Completed').length;
         const active = projects.filter(p => p.status !== 'Completed' && p.status !== 'Idea').length;
+
+        const resolvedIssues = allIssues.filter(i => i.status === 'Solved').length;
 
         const statusCounts = projects.reduce((acc, p) => {
             acc[p.status] = (acc[p.status] || 0) + 1;
@@ -36,11 +39,14 @@ const getAnalytics = async (req, res) => {
                 totalTeams: teams.length,
                 totalHackathons: hackathons.length,
                 activeProjects: active,
-                completedProjects: completed
+                completedProjects: completed,
+                totalIssues: allIssues.length,
+                resolvedIssues: resolvedIssues
             },
             projectStatusDistribution,
             teamAverageProgress,
-            hackathonParticipation
+            hackathonParticipation,
+            all_issues: allIssues
         });
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -69,12 +75,18 @@ const getTeamById = async (req, res) => {
         const team = users.find(u => u._id === req.params.id);
 
         if (team) {
-            const [teamHackathons, globalHackathons, projects, activities] = await Promise.all([
+            const [teamHackathons, globalHackathons, projects, activities, allIssues] = await Promise.all([
                 dynamoService.getHackathonsByUser(team.email),
                 dynamoService.getGlobalHackathons(),
                 dynamoService.getAllProjects(),
-                dynamoService.getActivitiesByUser(team.email, 20)
+                dynamoService.getActivitiesByUser(team.email, 20),
+                dynamoService.getAllIssues()
             ]);
+
+            const issues = allIssues.filter(i =>
+                i.team_id === team._id ||
+                i.target === team._id
+            );
 
             const teamProjects = projects.filter(p => p.team_id === team._id);
 
@@ -91,7 +103,7 @@ const getTeamById = async (req, res) => {
                 return { ...p, reports };
             }));
 
-            res.json({ ...team, hackathons: allHackathons, projects: populatedProjects, activities: activities || [] });
+            res.json({ ...team, hackathons: allHackathons, projects: populatedProjects, activities: activities || [], issues: issues || [] });
         } else {
             res.status(404).json({ message: 'Team not found' });
         }
@@ -299,10 +311,11 @@ const deleteActivity = async (req, res) => {
  */
 const getDashboardFull = async (req, res) => {
     try {
-        const [overviewRes, activities, hackathons] = await Promise.all([
+        const [overviewRes, activities, hackathons, allIssues] = await Promise.all([
             dynamoService.getAdminDashboardOverview(),
             dynamoService.getGlobalActivity(100),
-            dynamoService.getGlobalHackathons()
+            dynamoService.getGlobalHackathons(),
+            dynamoService.getAllIssues()
         ]);
 
         const { users, hackathons: hList, projects } = overviewRes;
@@ -327,9 +340,18 @@ const getDashboardFull = async (req, res) => {
             return { name: h.hackathon_name, value: count };
         });
 
+        const resolvedIssues = allIssues.filter(i => i.status === 'Solved').length;
+
         res.json({
             metrics: {
-                overview: { totalTeams: teams.length, totalHackathons: hList.length, activeProjects: active, completedProjects: completed },
+                overview: {
+                    totalTeams: teams.length,
+                    totalHackathons: hList.length,
+                    activeProjects: active,
+                    completedProjects: completed,
+                    totalIssues: allIssues.length,
+                    resolvedIssues: resolvedIssues
+                },
                 projectStatusDistribution,
                 teamAverageProgress,
                 hackathonParticipation
@@ -337,7 +359,8 @@ const getDashboardFull = async (req, res) => {
             activities,
             hackathons,
             teams,
-            projects
+            projects,
+            all_issues: allIssues
         });
     } catch (error) {
         console.error('Combined dashboard fetch error:', error);
@@ -415,10 +438,128 @@ const deleteGlobalHackathon = async (req, res) => {
     }
 };
 
+const solveIssue = async (req, res) => {
+    try {
+        const allIssues = await dynamoService.getAllIssues();
+        const issue = allIssues.find(i => i._id === req.params.id);
+
+        if (issue) {
+            issue.status = 'Solved';
+            issue.solved_by = req.user.team_name || 'Admin';
+            await dynamoService.saveIssue(req.user.email || 'admin@system.local', issue); // update
+
+            await dynamoService.saveActivity({
+                action: 'ISSUE_SOLVED_BY_ADMIN',
+                detail: `Admin marked issue as solved: ${issue.title}`,
+                email: req.user.email || 'admin@admin.com',
+                team_name: req.user.team_name || 'Admin',
+                icon: 'ShieldCheck'
+            });
+
+            res.json(issue);
+        } else {
+            res.status(404).json({ message: 'Issue not found' });
+        }
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+const createIssue = async (req, res) => {
+    try {
+        const { title, description, target } = req.body;
+        const issueData = {
+            title,
+            description,
+            project_id: null,
+            target: target || 'Global',
+            image_url: null,
+            status: 'Open',
+            team_id: 'admin',
+            team_name: 'Admin',
+            timestamp: new Date().toISOString(),
+            replies: []
+        };
+        const issue = await dynamoService.saveIssue('admin@system.local', issueData);
+
+        await dynamoService.saveActivity({
+            action: 'ADMIN_BROADCAST',
+            detail: `Admin broadcasted to ${target}: ${title}`,
+            email: req.user.email || 'admin@admin.com',
+            team_name: 'Admin',
+            icon: 'Flag'
+        });
+
+        res.status(201).json(issue);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+const replyIssue = async (req, res) => {
+    try {
+        const { message } = req.body;
+        const allIssues = await dynamoService.getAllIssues();
+        const issue = allIssues.find(i => i._id === req.params.id);
+
+        if (issue) {
+            const reply = {
+                sender: 'Admin',
+                sender_id: 'admin',
+                message,
+                timestamp: new Date().toISOString()
+            };
+            issue.replies = issue.replies || [];
+            issue.replies.push(reply);
+
+            await dynamoService.saveIssue('', issue);
+
+            await dynamoService.saveActivity({
+                action: 'ADMIN_ISSUE_REPLY',
+                detail: `Admin replied to issue: ${issue.title}`,
+                email: req.user.email || 'admin@admin.com',
+                team_name: 'Admin',
+                icon: 'Flag'
+            });
+
+            res.json(issue);
+        } else {
+            res.status(404).json({ message: 'Issue not found' });
+        }
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+const deleteIssue = async (req, res) => {
+    try {
+        const allIssues = await dynamoService.getAllIssues();
+        const issue = allIssues.find(i => i._id === req.params.id);
+
+        if (!issue) {
+            return res.status(404).json({ message: 'Issue not found' });
+        }
+
+        await dynamoService.deleteIssue(issue.PK, issue.SK);
+
+        await dynamoService.saveActivity({
+            action: 'ADMIN_DELETED_ISSUE',
+            detail: `Admin deleted issue: ${issue.title}`,
+            email: req.user.email || 'admin@admin.com',
+            team_name: 'Admin',
+            icon: 'Trash2'
+        });
+
+        res.json({ message: 'Issue deleted successfully' });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
 module.exports = {
     getAnalytics, getTeams, getTeamById, deleteTeam,
     gradeReport, deleteReport, listS3Files, rateProject, getSignedDownloadUrl,
     getActivities, deleteActivity,
     createGlobalHackathon, getGlobalHackathons, deleteGlobalHackathon,
-    getDashboardFull
+    getDashboardFull, solveIssue, replyIssue, createIssue, deleteIssue
 };

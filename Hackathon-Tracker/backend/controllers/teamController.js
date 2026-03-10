@@ -292,7 +292,7 @@ const deleteArtifact = async (req, res) => {
 // @desc    Report an issue
 const reportIssue = async (req, res) => {
     try {
-        const { title, description, project_id } = req.body;
+        const { title, description, project_id, target } = req.body;
         let image_url = '';
 
         if (req.file) {
@@ -308,17 +308,19 @@ const reportIssue = async (req, res) => {
 
         const issue = await dynamoService.saveIssue(req.user.email, {
             team_id: req.user._id,
+            team_name: req.user.team_name,
             project_id,
             title,
             description,
             image_url,
             status: 'Open',
-            user_id: req.user._id
+            user_id: req.user._id,
+            target: target || 'Admin' // 'Global', 'Admin', or team_id
         });
 
         await dynamoService.saveActivity({
             action: 'ISSUE_REPORT',
-            detail: `Reported issue: ${title}`,
+            detail: `Reported issue to ${target || 'Admin'}: ${title}`,
             email: req.user.email,
             team_name: req.user.team_name,
             icon: 'AlertTriangle'
@@ -332,8 +334,104 @@ const reportIssue = async (req, res) => {
 
 const getTeamIssues = async (req, res) => {
     try {
-        const issues = await dynamoService.getIssuesByUser(req.user.email);
+        const allIssues = await dynamoService.getAllIssues();
+        const issues = allIssues.filter(i =>
+            i.team_id === req.user._id || // I sent it
+            i.target === 'Global' || // Sent to everyone
+            i.target === req.user._id // Sent directly to my team
+        );
         res.json(issues);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+const solveIssue = async (req, res) => {
+    try {
+        const allIssues = await dynamoService.getAllIssues();
+        const issue = allIssues.find(i => i._id === req.params.id);
+
+        if (issue) {
+            issue.status = 'Solved';
+            issue.solved_by = req.user.team_name;
+            await dynamoService.saveIssue(req.user.email, issue); // it will use existing PK/SK
+
+            await dynamoService.saveActivity({
+                action: 'ISSUE_SOLVED',
+                detail: `Solved issue: ${issue.title}`,
+                email: req.user.email,
+                team_name: req.user.team_name,
+                icon: 'CheckCircle2'
+            });
+
+            res.json(issue);
+        } else {
+            res.status(404).json({ message: 'Issue not found' });
+        }
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+const replyIssue = async (req, res) => {
+    try {
+        const { message } = req.body;
+        const allIssues = await dynamoService.getAllIssues();
+        const issue = allIssues.find(i => i._id === req.params.id);
+
+        if (issue) {
+            const reply = {
+                sender: req.user.team_name,
+                sender_id: req.user._id,
+                message,
+                timestamp: new Date().toISOString()
+            };
+            issue.replies = issue.replies || [];
+            issue.replies.push(reply);
+
+            await dynamoService.saveIssue('', issue);
+
+            await dynamoService.saveActivity({
+                action: 'ISSUE_REPLY',
+                detail: `Replied to issue: ${issue.title}`,
+                email: req.user.email,
+                team_name: req.user.team_name,
+                icon: 'Flag'
+            });
+
+            res.json(issue);
+        } else {
+            res.status(404).json({ message: 'Issue not found' });
+        }
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+const deleteIssue = async (req, res) => {
+    try {
+        const allIssues = await dynamoService.getAllIssues();
+        const issue = allIssues.find(i => i._id === req.params.id);
+
+        if (!issue) {
+            return res.status(404).json({ message: 'Issue not found' });
+        }
+
+        if (issue.team_id !== req.user._id) {
+            return res.status(403).json({ message: 'Not authorized to delete this issue' });
+        }
+
+        await dynamoService.deleteIssue(issue.PK, issue.SK);
+
+        await dynamoService.saveActivity({
+            action: 'ISSUE_DELETED',
+            detail: `Deleted issue: ${issue.title}`,
+            email: req.user.email,
+            team_name: req.user.team_name,
+            icon: 'Trash2'
+        });
+
+        res.json({ message: 'Issue deleted successfully' });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -422,10 +520,23 @@ const getGlobalHackathons = async (req, res) => {
     }
 };
 
+const getTeams = async (req, res) => {
+    try {
+        const users = await dynamoService.getAllUsers();
+        const teams = users.filter(u => u.role === 'team').map(t => ({
+            _id: t._id,
+            team_name: t.team_name
+        }));
+        res.json(teams);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
 module.exports = {
     getTeamProfile, updateTeamProfile, createHackathon, getHackathons,
     updateHackathon, deleteHackathon, createProject, getProjects,
     updateProjectStatus, deleteProject, uploadReport, getReports,
-    deleteArtifact, reportIssue, getTeamIssues, getProjectHistory,
-    getSignedDownloadUrl, getLeaderboard, getActivities, getGlobalHackathons
+    deleteArtifact, reportIssue, getTeamIssues, deleteIssue, solveIssue, replyIssue, getProjectHistory,
+    getSignedDownloadUrl, getLeaderboard, getActivities, getGlobalHackathons, getTeams
 };
